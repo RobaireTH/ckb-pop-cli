@@ -1,6 +1,7 @@
 use anyhow::Result;
 
 use crate::cli::{Cli, TxCommand};
+use crate::commands::resolve_rpc;
 use crate::config::Config;
 use crate::rpc::RpcClient;
 
@@ -26,11 +27,4 @@ pub async fn run(cli: &Cli, cmd: &TxCommand) -> Result<()> {
 			Ok(())
 		}
 	}
-}
-
-/// Pick the RPC URL: CLI flag > config file default.
-fn resolve_rpc(cli: &Cli, config: &Config) -> String {
-	cli.rpc_url
-		.clone()
-		.unwrap_or_else(|| config.rpc_url(cli.network.as_str()).to_owned())
 }
