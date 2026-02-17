@@ -27,12 +27,14 @@ impl RpcClient {
 
 	/// Access the underlying ckb-sdk client for operations that it
 	/// handles well (sending transactions, fetching blocks, etc.).
+	#[allow(dead_code)]
 	pub fn sdk(&self) -> &CkbRpcClient {
 		&self.sdk
 	}
 
 	// -- Standard RPC helpers --
 
+	#[allow(dead_code)]
 	pub fn get_tip_block_number(&self) -> Result<u64> {
 		Ok(self.sdk.get_tip_block_number()?.into())
 	}
@@ -120,6 +122,7 @@ impl RpcClient {
 
 	/// Find all badge cells minted for a given event (prefix match on
 	/// the first 32 bytes of type-script args = SHA256(event_id)).
+	#[allow(dead_code)]
 	pub async fn find_badges_for_event(
 		&self,
 		badge_code_hash: &str,

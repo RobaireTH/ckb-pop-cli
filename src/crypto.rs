@@ -50,6 +50,7 @@ impl QrPayload {
 	}
 
 	/// Encode back to the pipe-delimited format.
+	#[allow(dead_code)]
 	pub fn encode(&self) -> String {
 		format!("{}|{}|{}", self.event_id, self.timestamp, self.hmac)
 	}
@@ -77,6 +78,7 @@ pub fn generate_qr_hmac(window_secret: &[u8; 32], timestamp: i64) -> String {
 }
 
 /// Verify a QR HMAC against the window secret and timestamp.
+#[allow(dead_code)]
 pub fn verify_qr_hmac(window_secret: &[u8; 32], timestamp: i64, expected: &str) -> bool {
 	generate_qr_hmac(window_secret, timestamp) == expected
 }

@@ -27,7 +27,7 @@ pub async fn run(cli: &Cli, qr_data: &str) -> Result<()> {
 	// 2. Check freshness (must be within 60 seconds).
 	let now = chrono::Utc::now().timestamp();
 	let age = now - qr.timestamp;
-	if age < 0 || age > 60 {
+	if !(0..=60).contains(&age) {
 		anyhow::bail!("QR code expired ({age}s old, maximum is 60s).");
 	}
 

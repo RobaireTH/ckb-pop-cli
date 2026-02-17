@@ -119,7 +119,7 @@ async fn list_badges(rpc: &RpcClient, badge_code_hash: &str, address: &str) -> R
 			Some(a) => a.strip_prefix("0x").unwrap_or(a),
 			None => continue,
 		};
-		if args.len() < 128 || &args[64..128] != addr_hash {
+		if args.len() < 128 || args[64..128] != addr_hash {
 			continue;
 		}
 

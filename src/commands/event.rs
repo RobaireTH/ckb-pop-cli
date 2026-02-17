@@ -46,6 +46,7 @@ pub async fn run(cli: &Cli, cmd: &EventCommand) -> Result<()> {
 	}
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn create_event(
 	cli: &Cli,
 	config: &Config,
@@ -211,7 +212,7 @@ async fn list_events(
 				.and_then(|v| v.as_str())
 				.unwrap_or("");
 			let args = args.strip_prefix("0x").unwrap_or(args);
-			if args.len() >= 128 && &args[64..128] != ch.as_str() {
+			if args.len() >= 128 && args[64..128] != *ch {
 				continue;
 			}
 		}

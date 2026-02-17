@@ -1,4 +1,5 @@
 /// Metadata for a deployed on-chain script.
+#[allow(dead_code)]
 pub struct ContractInfo {
 	/// Type-ID code hash (0x-prefixed, 66 chars).
 	pub code_hash: &'static str,
