@@ -1,7 +1,8 @@
-use anyhow::{bail, Result};
+use anyhow::Result;
 
 use crate::cli::{SignerArg, SignerCommand};
 use crate::config::{Config, SignerMethod};
+use crate::signer::browser;
 
 pub async fn run(cmd: &SignerCommand) -> Result<()> {
 	match cmd {
@@ -29,10 +30,26 @@ fn set_method(method: &SignerArg) -> Result<()> {
 
 async fn connect() -> Result<()> {
 	let config = Config::load()?;
-	let _method = config.signer.method.as_ref().ok_or_else(|| {
+	let method = config.signer.method.as_ref().ok_or_else(|| {
 		anyhow::anyhow!("No signer method set. Run: ckb-pop signer set --method <method>")
 	})?;
-	bail!("signer connect is not yet implemented")
+
+	let address = match method {
+		SignerMethod::Browser => {
+			println!("Opening browser to connect wallet...");
+			browser::connect_wallet(&config.network.default).await?
+		}
+		other => anyhow::bail!("{other:?} connect is not yet implemented"),
+	};
+
+	println!("Connected: {address}");
+
+	let mut config = config;
+	config.signer.address = Some(address);
+	config.save()?;
+	println!("Address saved to config.");
+
+	Ok(())
 }
 
 fn show_status() -> Result<()> {

@@ -42,5 +42,6 @@ pub fn resolve_signer(
 			anyhow::anyhow!("No address configured. Run: ckb-pop signer connect")
 		})?;
 
-	crate::signer::from_method(&method, address.to_owned())
+	let network = cli.network.as_str();
+	crate::signer::from_method(&method, address.to_owned(), network)
 }

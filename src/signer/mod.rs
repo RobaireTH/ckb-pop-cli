@@ -23,9 +23,12 @@ pub trait Signer: Send + Sync {
 }
 
 /// Build a signer from the method chosen on the CLI or in config.
-pub fn from_method(method: &SignerArg, address: String) -> Result<Box<dyn Signer>> {
+pub fn from_method(method: &SignerArg, address: String, network: &str) -> Result<Box<dyn Signer>> {
 	match method {
-		SignerArg::Browser => Ok(Box::new(browser::BrowserSigner::new(address))),
+		SignerArg::Browser => Ok(Box::new(browser::BrowserSigner::new(
+			address,
+			network.to_owned(),
+		))),
 		other => anyhow::bail!("{other:?} signer is not yet implemented"),
 	}
 }
