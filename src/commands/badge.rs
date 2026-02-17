@@ -2,6 +2,7 @@ use anyhow::Result;
 use sha2::{Digest, Sha256};
 
 use crate::cli::{BadgeCommand, Cli};
+use crate::commands::{resolve_rpc, resolve_signer};
 use crate::config::Config;
 use crate::contracts::CONTRACTS;
 use crate::crypto;
@@ -10,10 +11,7 @@ use crate::rpc::RpcClient;
 pub async fn run(cli: &Cli, cmd: &BadgeCommand) -> Result<()> {
 	let config = Config::load()?;
 	let network = cli.network.as_str();
-	let rpc_url = cli
-		.rpc_url
-		.clone()
-		.unwrap_or_else(|| config.rpc_url(network).to_owned());
+	let rpc_url = resolve_rpc(cli, &config);
 	let rpc = RpcClient::new(&rpc_url);
 	let contracts = CONTRACTS.for_network(network);
 
@@ -24,13 +22,50 @@ pub async fn run(cli: &Cli, cmd: &BadgeCommand) -> Result<()> {
 		BadgeCommand::List { address } => {
 			list_badges(&rpc, contracts.dob_badge.code_hash, address).await
 		}
-		BadgeCommand::Mint { .. } => {
-			anyhow::bail!("badge mint requires a signer — not yet implemented")
+		BadgeCommand::Mint { event_id, to } => {
+			mint_badge(cli, &config, &rpc, network, event_id, to).await
 		}
 	}
 }
 
-/// Check whether a specific (event, address) badge exists on-chain.
+async fn mint_badge(
+	cli: &Cli,
+	config: &Config,
+	rpc: &RpcClient,
+	network: &str,
+	event_id: &str,
+	to: &str,
+) -> Result<()> {
+	let signer = resolve_signer(cli, config)?;
+	let issuer = signer.address().to_owned();
+	let contracts = CONTRACTS.for_network(network);
+
+	let recipient_addr: ckb_sdk::Address = to
+		.parse()
+		.map_err(|e| anyhow::anyhow!("invalid recipient address: {e}"))?;
+	let recipient_lock: ckb_types::packed::Script = (&recipient_addr).into();
+
+	let tx = crate::tx_builder::build_badge_mint(
+		&contracts.dob_badge,
+		event_id,
+		to,
+		recipient_lock,
+		&issuer,
+		None,
+	)?;
+
+	println!("Signing badge transaction...");
+	let signed = signer.sign_transaction(tx).await?;
+
+	let json_tx = ckb_jsonrpc_types::TransactionView::from(signed);
+	let tx_hash = rpc.send_transaction(json_tx.inner)?;
+	println!("Badge minted for event {event_id}.");
+	println!("  Recipient: {to}");
+	println!("  TX: {tx_hash:#x}");
+
+	Ok(())
+}
+
 async fn verify_badge(
 	rpc: &RpcClient,
 	badge_code_hash: &str,
@@ -74,11 +109,6 @@ async fn verify_badge(
 	Ok(())
 }
 
-/// List all badges held by a given address.
-///
-/// Because the address hash occupies the *second* 32 bytes of the type
-/// script args, we cannot use a prefix search to filter server-side.
-/// Instead we fetch all badge cells and filter locally.
 async fn list_badges(rpc: &RpcClient, badge_code_hash: &str, address: &str) -> Result<()> {
 	let addr_hash = hex::encode(Sha256::digest(address.as_bytes()));
 	let cells = rpc.find_all_badges(badge_code_hash).await?;
@@ -89,7 +119,6 @@ async fn list_badges(rpc: &RpcClient, badge_code_hash: &str, address: &str) -> R
 			Some(a) => a.strip_prefix("0x").unwrap_or(a),
 			None => continue,
 		};
-		// args is 128 hex chars (64 bytes): first half = event hash, second = address hash.
 		if args.len() < 128 || &args[64..128] != addr_hash {
 			continue;
 		}
