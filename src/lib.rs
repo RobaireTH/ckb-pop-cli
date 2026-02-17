@@ -5,3 +5,4 @@ pub mod contracts;
 pub mod crypto;
 pub mod rpc;
 pub mod signer;
+pub mod tx_builder;

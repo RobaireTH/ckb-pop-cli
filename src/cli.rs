@@ -42,7 +42,7 @@ impl Network {
 	}
 }
 
-#[derive(Clone, ValueEnum)]
+#[derive(Clone, Debug, ValueEnum)]
 pub enum SignerArg {
 	Browser,
 	Ledger,
