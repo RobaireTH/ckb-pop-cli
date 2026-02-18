@@ -192,30 +192,124 @@ fn build_signing_page(port: u16) -> String {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ckb-pop – wallet signing</title>
+<title>ckb-pop — sign</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-  body {{ font-family: system-ui, sans-serif; background: #0d1117; color: #c9d1d9;
-         display: flex; align-items: center; justify-content: center; min-height: 100vh; }}
-  .card {{ background: #161b22; border: 1px solid #30363d; border-radius: 12px;
-           padding: 2rem; max-width: 420px; width: 100%; text-align: center; }}
-  h1 {{ font-size: 1.4rem; margin-bottom: 1rem; }}
-  #status {{ margin: 1rem 0; color: #8b949e; min-height: 1.5rem; }}
-  .success {{ color: #3fb950 !important; }}
-  .error {{ color: #f85149 !important; }}
-  button {{ background: #238636; color: #fff; border: none; border-radius: 6px;
-           padding: 0.6rem 1.5rem; font-size: 1rem; cursor: pointer; }}
-  button:hover {{ background: #2ea043; }}
-  button:disabled {{ opacity: 0.5; cursor: not-allowed; }}
+  *, *::before, *::after {{ margin: 0; padding: 0; box-sizing: border-box; }}
+
+  body {{
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    background: #000;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    overflow: hidden;
+  }}
+
+  /* Radial lime glow background matching ckb-pop.xyz */
+  body::before {{
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 0%, rgba(163,230,53,0.12) 0%, transparent 70%),
+      radial-gradient(ellipse 60% 40% at 20% 80%, rgba(163,230,53,0.06) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }}
+
+  /* Subtle grid overlay */
+  body::after {{
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(163,230,53,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(163,230,53,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }}
+
+  .card {{
+    position: relative;
+    z-index: 1;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(163,230,53,0.2);
+    border-radius: 16px;
+    padding: 2.5rem 2rem;
+    max-width: 440px;
+    width: 100%;
+    text-align: center;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 0 40px rgba(163,230,53,0.06), inset 0 1px 0 rgba(163,230,53,0.1);
+  }}
+
+  .logo {{
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1.75rem;
+  }}
+
+  .logo-dot {{
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #a3e635;
+    box-shadow: 0 0 8px #a3e635, 0 0 20px rgba(163,230,53,0.4);
+  }}
+
+  .logo-text {{
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.1rem;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    color: #a3e635;
+  }}
+
+  .action-label {{
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    font-weight: 500;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: rgba(163,230,53,0.5);
+    margin-bottom: 0.6rem;
+  }}
+
+  #status {{
+    font-size: 0.95rem;
+    color: rgba(255,255,255,0.55);
+    min-height: 1.4rem;
+    margin-bottom: 1.5rem;
+  }}
+
+  #status.success {{ color: #a3e635; }}
+  #status.error   {{ color: #f87171; }}
+
+  #connector-host {{
+    display: flex;
+    justify-content: center;
+  }}
 </style>
 </head>
 <body>
 <div class="card">
-  <h1>ckb-pop</h1>
-  <p id="status">Loading CCC SDK...</p>
+  <div class="logo">
+    <div class="logo-dot"></div>
+    <span class="logo-text">ckb-pop</span>
+  </div>
+  <p class="action-label">Wallet Signing</p>
+  <p id="status">Connecting...</p>
   <div id="connector-host"></div>
 </div>
 
+<script src="/ccc-bundle.js"></script>
 <script type="module">
 const PORT = {port};
 const BASE = `http://127.0.0.1:${{PORT}}`;
@@ -227,8 +321,10 @@ function setStatus(msg, cls) {{
 }}
 
 async function main() {{
-  setStatus("Loading CCC SDK...");
-  const {{ ccc }} = await import(`${{BASE}}/ccc-bundle.js`);
+  // The bundle exposes window.ccc as a global — no dynamic import needed.
+  const ccc = window.ccc;
+  if (!ccc) {{ setStatus("CCC SDK failed to load.", "error"); return; }}
+
   setStatus("Fetching request...");
 
   // Fetch the signing request from the CLI server.
@@ -312,27 +408,27 @@ async function main() {{
 
       // CCC returns camelCase; the Rust deserializer expects snake_case
       // (CKB RPC format). Convert before sending back.
-      const raw = JSON.parse(JSON.stringify(signed, (_, v) =>
+      const rawSigned = JSON.parse(JSON.stringify(signed, (_, v) =>
         typeof v === "bigint" ? "0x" + v.toString(16) : v
       ));
       const snakeTx = {{
-        version: raw.version,
-        cell_deps: (raw.cellDeps || []).map(d => ({{
+        version: rawSigned.version,
+        cell_deps: (rawSigned.cellDeps || []).map(d => ({{
           out_point: {{ tx_hash: d.outPoint.txHash, index: d.outPoint.index }},
           dep_type: d.depType,
         }})),
-        header_deps: raw.headerDeps || [],
-        inputs: (raw.inputs || []).map(i => ({{
+        header_deps: rawSigned.headerDeps || [],
+        inputs: (rawSigned.inputs || []).map(i => ({{
           previous_output: {{ tx_hash: i.previousOutput.txHash, index: i.previousOutput.index }},
           since: i.since,
         }})),
-        outputs: (raw.outputs || []).map(o => ({{
+        outputs: (rawSigned.outputs || []).map(o => ({{
           capacity: o.capacity,
           lock: {{ code_hash: o.lock.codeHash, hash_type: o.lock.hashType, args: o.lock.args }},
           type: o.type ? {{ code_hash: o.type.codeHash, hash_type: o.type.hashType, args: o.type.args }} : null,
         }})),
-        outputs_data: raw.outputsData || [],
-        witnesses: raw.witnesses || [],
+        outputs_data: rawSigned.outputsData || [],
+        witnesses: rawSigned.witnesses || [],
       }};
       result = {{ transaction: snakeTx }};
     }}
