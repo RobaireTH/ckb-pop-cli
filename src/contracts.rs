@@ -25,8 +25,10 @@ pub struct Contracts {
 impl Contracts {
 	pub fn for_network(&self, network: &str) -> &NetworkContracts {
 		match network {
-			// Mainnet contracts are not yet deployed.
-			"mainnet" => unimplemented!("mainnet contracts are not deployed yet"),
+			"mainnet" => {
+				eprintln!("Error: Mainnet contracts are not deployed yet. Use --network testnet.");
+				std::process::exit(1);
+			}
 			_ => &self.testnet,
 		}
 	}
