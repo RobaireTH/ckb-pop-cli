@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use ckb_types::{
 	bytes::Bytes,
-	core::TransactionBuilder,
+	core::{Capacity, TransactionBuilder},
 	packed::{CellDep, CellOutput, OutPoint, Script},
 	prelude::*,
 	H256,
@@ -27,14 +27,17 @@ pub fn build_event_anchor(
 	let cell_data = crypto::build_anchor_cell_data(event_id, creator_address, metadata_hash);
 	let cell_dep = cell_dep_for(contract)?;
 
+	let data_bytes = Bytes::from(cell_data);
+
 	let output = CellOutput::new_builder()
 		.lock(creator_lock)
 		.type_(Some(type_script).pack())
 		.build();
+	let output = set_min_capacity(output, data_bytes.len());
 
 	Ok(TransactionBuilder::default()
 		.output(output)
-		.output_data(Bytes::from(cell_data).pack())
+		.output_data(data_bytes.pack())
 		.cell_dep(cell_dep)
 		.build())
 }
@@ -53,19 +56,35 @@ pub fn build_badge_mint(
 	let cell_data = crypto::build_badge_cell_data(event_id, issuer_address, proof_hash);
 	let cell_dep = cell_dep_for(contract)?;
 
+	let data_bytes = Bytes::from(cell_data);
+
 	let output = CellOutput::new_builder()
 		.lock(recipient_lock)
 		.type_(Some(type_script).pack())
 		.build();
+	let output = set_min_capacity(output, data_bytes.len());
 
 	Ok(TransactionBuilder::default()
 		.output(output)
-		.output_data(Bytes::from(cell_data).pack())
+		.output_data(data_bytes.pack())
 		.cell_dep(cell_dep)
 		.build())
 }
 
 // -- Helpers --
+
+/// Compute the minimum CKB capacity a cell needs and set it on the output.
+/// Formula: (8 + occupied_bytes) * 1 CKB, where occupied_bytes includes the
+/// lock script, type script, and output data.
+fn set_min_capacity(output: CellOutput, data_len: usize) -> CellOutput {
+	let occupied = output
+		.occupied_capacity(Capacity::bytes(data_len).unwrap())
+		.unwrap();
+	output
+		.as_builder()
+		.capacity(occupied.pack())
+		.build()
+}
 
 fn type_script_from(contract: &ContractInfo, args: Vec<u8>) -> Result<Script> {
 	let code_hash = parse_h256(contract.code_hash)?;
