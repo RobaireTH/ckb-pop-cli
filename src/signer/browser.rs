@@ -1,5 +1,4 @@
 use std::io::Write as _;
-
 use anyhow::{anyhow, Result};
 use ckb_types::core::TransactionView;
 use ckb_types::prelude::IntoTransactionView;
@@ -88,6 +87,10 @@ async fn bind_listener() -> Result<TcpListener> {
 	Ok(TcpListener::bind("127.0.0.1:0").await?)
 }
 
+/// The CCC SDK bundle, pre-built with esbuild from @ckb-ccc/ccc + @ckb-ccc/connector.
+/// Embedded at compile time so the signing page loads instantly from localhost.
+static CCC_BUNDLE: &[u8] = include_bytes!("ccc-bundle.js");
+
 /// Start the localhost server, open the browser, and wait for the callback.
 async fn run_browser_session(request: &serde_json::Value) -> Result<serde_json::Value> {
 	let listener = bind_listener().await?;
@@ -113,7 +116,10 @@ async fn run_browser_session(request: &serde_json::Value) -> Result<serde_json::
 		let n = stream.read(&mut buf).await?;
 		let raw = String::from_utf8_lossy(&buf[..n]);
 
-		if raw.starts_with("GET /request") {
+		if raw.starts_with("GET /ccc-bundle.js") {
+			let resp = http_response(200, "application/javascript", CCC_BUNDLE);
+			stream.write_all(&resp).await?;
+		} else if raw.starts_with("GET /request") {
 			let resp = http_response(200, "application/json", request_json.as_bytes());
 			stream.write_all(&resp).await?;
 		} else if raw.starts_with("POST /callback") {
@@ -221,9 +227,9 @@ function setStatus(msg, cls) {{
 }}
 
 async function main() {{
-  // Dynamically import CCC SDK.
-  const {{ ccc }} = await import("https://esm.sh/@ckb-ccc/ccc@1.1.10");
-  await import("https://esm.sh/@ckb-ccc/connector@1.1.10");
+  setStatus("Loading CCC SDK...");
+  const {{ ccc }} = await import(`${{BASE}}/ccc-bundle.js`);
+  setStatus("Fetching request...");
 
   // Fetch the signing request from the CLI server.
   const req = await fetch(`${{BASE}}/request`).then(r => r.json());
@@ -274,8 +280,28 @@ async function main() {{
       result = {{ signature: sig.signature || sig }};
     }}
     else if (req.action === "sign_transaction") {{
-      // Reconstruct a CCC Transaction from the CLI's unsigned JSON.
-      const tx = ccc.Transaction.from(req.transaction);
+      // The CLI sends snake_case JSON (CKB RPC format).
+      // CCC expects camelCase, so we transform before constructing.
+      const raw = req.transaction;
+      const tx = ccc.Transaction.from({{
+        version: raw.version,
+        cellDeps: (raw.cell_deps || []).map(d => ({{
+          outPoint: {{ txHash: d.out_point.tx_hash, index: d.out_point.index }},
+          depType: d.dep_type,
+        }})),
+        headerDeps: raw.header_deps || [],
+        inputs: (raw.inputs || []).map(i => ({{
+          previousOutput: {{ txHash: i.previous_output.tx_hash, index: i.previous_output.index }},
+          since: i.since,
+        }})),
+        outputs: (raw.outputs || []).map(o => ({{
+          capacity: o.capacity,
+          lock: {{ codeHash: o.lock.code_hash, hashType: o.lock.hash_type, args: o.lock.args }},
+          type: o.type ? {{ codeHash: o.type.code_hash, hashType: o.type.hash_type, args: o.type.args }} : undefined,
+        }})),
+        outputsData: raw.outputs_data || [],
+        witnesses: raw.witnesses || [],
+      }});
 
       // Let CCC fill in inputs and fees from the connected wallet.
       await tx.completeInputsByCapacity(signer);
@@ -284,11 +310,31 @@ async function main() {{
       // Sign without broadcasting — the CLI will broadcast.
       const signed = await signer.signTransaction(tx);
 
-      // Serialize for transport back to the CLI.
-      const json = JSON.parse(JSON.stringify(signed, (_, v) =>
+      // CCC returns camelCase; the Rust deserializer expects snake_case
+      // (CKB RPC format). Convert before sending back.
+      const raw = JSON.parse(JSON.stringify(signed, (_, v) =>
         typeof v === "bigint" ? "0x" + v.toString(16) : v
       ));
-      result = {{ transaction: json }};
+      const snakeTx = {{
+        version: raw.version,
+        cell_deps: (raw.cellDeps || []).map(d => ({{
+          out_point: {{ tx_hash: d.outPoint.txHash, index: d.outPoint.index }},
+          dep_type: d.depType,
+        }})),
+        header_deps: raw.headerDeps || [],
+        inputs: (raw.inputs || []).map(i => ({{
+          previous_output: {{ tx_hash: i.previousOutput.txHash, index: i.previousOutput.index }},
+          since: i.since,
+        }})),
+        outputs: (raw.outputs || []).map(o => ({{
+          capacity: o.capacity,
+          lock: {{ code_hash: o.lock.codeHash, hash_type: o.lock.hashType, args: o.lock.args }},
+          type: o.type ? {{ code_hash: o.type.codeHash, hash_type: o.type.hashType, args: o.type.args }} : null,
+        }})),
+        outputs_data: raw.outputsData || [],
+        witnesses: raw.witnesses || [],
+      }};
+      result = {{ transaction: snakeTx }};
     }}
     else {{
       throw new Error("Unknown action: " + req.action);
