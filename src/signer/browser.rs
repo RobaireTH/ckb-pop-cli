@@ -401,7 +401,7 @@ async function main() {{
 
       // Let CCC fill in inputs and fees from the connected wallet.
       await tx.completeInputsByCapacity(signer);
-      await tx.completeFeeBy(signer, 1000);
+      await tx.completeFeeBy(signer, 2000);
 
       // Sign without broadcasting — the CLI will broadcast.
       const signed = await signer.signTransaction(tx);
@@ -411,11 +411,15 @@ async function main() {{
       const rawSigned = JSON.parse(JSON.stringify(signed, (_, v) =>
         typeof v === "bigint" ? "0x" + v.toString(16) : v
       ));
+      // Convert camelCase enum values that CCC uses internally to the
+      // snake_case form the CKB RPC format expects.
+      function depType(v) {{ return v === "depGroup" ? "dep_group" : v; }}
+      function hashType(v) {{ return typeof v === "string" ? v.toLowerCase() : v; }}
       const snakeTx = {{
         version: rawSigned.version,
         cell_deps: (rawSigned.cellDeps || []).map(d => ({{
           out_point: {{ tx_hash: d.outPoint.txHash, index: d.outPoint.index }},
-          dep_type: d.depType,
+          dep_type: depType(d.depType),
         }})),
         header_deps: rawSigned.headerDeps || [],
         inputs: (rawSigned.inputs || []).map(i => ({{
@@ -424,8 +428,8 @@ async function main() {{
         }})),
         outputs: (rawSigned.outputs || []).map(o => ({{
           capacity: o.capacity,
-          lock: {{ code_hash: o.lock.codeHash, hash_type: o.lock.hashType, args: o.lock.args }},
-          type: o.type ? {{ code_hash: o.type.codeHash, hash_type: o.type.hashType, args: o.type.args }} : null,
+          lock: {{ code_hash: o.lock.codeHash, hash_type: hashType(o.lock.hashType), args: o.lock.args }},
+          type: o.type ? {{ code_hash: o.type.codeHash, hash_type: hashType(o.type.hashType), args: o.type.args }} : null,
         }})),
         outputs_data: rawSigned.outputsData || [],
         witnesses: rawSigned.witnesses || [],
