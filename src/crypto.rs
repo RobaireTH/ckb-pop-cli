@@ -7,6 +7,11 @@ type HmacSha256 = Hmac<Sha256>;
 
 /// Compute a deterministic event ID from the creator's address, a unix
 /// timestamp, and a random nonce.  Result is a 64-character hex string.
+///
+/// Note: the canonical event ID for events registered on ckb-pop.xyz is
+/// assigned by the backend after signing `CKB-PoP-CreateEvent|{nonce}`.
+/// This function is retained for testing and offline use cases.
+#[allow(dead_code)]
 pub fn compute_event_id(creator_address: &str, timestamp_secs: i64, nonce: &str) -> String {
 	let mut h = Sha256::new();
 	h.update(creator_address.as_bytes());
