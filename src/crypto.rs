@@ -22,12 +22,12 @@ pub fn compute_event_id(creator_address: &str, timestamp_secs: i64, nonce: &str)
 
 // -- Type-script argument helpers --
 
-/// Build the 64-byte args used by both dob-badge and event-anchor type
-/// scripts: `SHA256(primary) || SHA256(secondary)`.
+/// Build the 40-byte args used by event-anchor type scripts and badge
+/// arg lookup: `SHA256(primary)[..20] || SHA256(secondary)[..20]`.
 pub fn build_type_script_args(primary: &str, secondary: &str) -> Vec<u8> {
-	let mut out = Vec::with_capacity(64);
-	out.extend_from_slice(&sha256(primary.as_bytes()));
-	out.extend_from_slice(&sha256(secondary.as_bytes()));
+	let mut out = Vec::with_capacity(40);
+	out.extend_from_slice(&sha256_truncated(primary.as_bytes()));
+	out.extend_from_slice(&sha256_truncated(secondary.as_bytes()));
 	out
 }
 
@@ -159,6 +159,15 @@ fn sha256(data: &[u8]) -> [u8; 32] {
 	Sha256::digest(data).into()
 }
 
+/// First 20 bytes of SHA256 — used for type script args to match the
+/// on-chain contracts' 20-byte truncated hash layout.
+fn sha256_truncated(data: &[u8]) -> [u8; 20] {
+	let full = Sha256::digest(data);
+	let mut out = [0u8; 20];
+	out.copy_from_slice(&full[..20]);
+	out
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -181,9 +190,9 @@ mod tests {
 	}
 
 	#[test]
-	fn type_script_args_are_64_bytes() {
+	fn type_script_args_are_40_bytes() {
 		let args = build_type_script_args("event123", "address456");
-		assert_eq!(args.len(), 64);
+		assert_eq!(args.len(), 40);
 	}
 
 	#[test]

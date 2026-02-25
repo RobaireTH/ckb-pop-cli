@@ -337,7 +337,7 @@ async fn list_events(
 	creator: Option<&str>,
 ) -> Result<()> {
 	let cells = rpc.find_all_event_anchors(anchor_code_hash).await?;
-	let creator_hash = creator.map(|a| hex::encode(Sha256::digest(a.as_bytes())));
+	let creator_hash = creator.map(|a| hex::encode(&Sha256::digest(a.as_bytes())[..20]));
 
 	let mut count = 0u32;
 	for cell in &cells {
@@ -347,7 +347,7 @@ async fn list_events(
 				.and_then(|v| v.as_str())
 				.unwrap_or("");
 			let args = args.strip_prefix("0x").unwrap_or(args);
-			if args.len() >= 128 && args[64..128] != *ch {
+			if args.len() >= 80 && args[40..80] != *ch {
 				continue;
 			}
 		}

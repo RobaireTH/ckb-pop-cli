@@ -110,7 +110,7 @@ async fn verify_badge(
 }
 
 async fn list_badges(rpc: &RpcClient, badge_code_hash: &str, address: &str) -> Result<()> {
-	let addr_hash = hex::encode(Sha256::digest(address.as_bytes()));
+	let addr_hash = hex::encode(&Sha256::digest(address.as_bytes())[..20]);
 	let cells = rpc.find_all_badges(badge_code_hash).await?;
 
 	let mut count = 0u32;
@@ -119,12 +119,12 @@ async fn list_badges(rpc: &RpcClient, badge_code_hash: &str, address: &str) -> R
 			Some(a) => a.strip_prefix("0x").unwrap_or(a),
 			None => continue,
 		};
-		if args.len() < 128 || args[64..128] != addr_hash {
+		if args.len() < 80 || args[40..80] != addr_hash {
 			continue;
 		}
 
 		count += 1;
-		let event_hash = &args[..64];
+		let event_hash = &args[..40];
 		let tx = cell
 			.pointer("/out_point/tx_hash")
 			.and_then(|v| v.as_str())

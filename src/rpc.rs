@@ -128,7 +128,7 @@ impl RpcClient {
 		badge_code_hash: &str,
 		event_id: &str,
 	) -> Result<Vec<Value>> {
-		let event_hash = hex::encode(Sha256::digest(event_id.as_bytes()));
+		let event_hash = hex::encode(&Sha256::digest(event_id.as_bytes())[..20]);
 		self.get_all_cells(type_prefix_search(badge_code_hash, &event_hash))
 			.await
 	}
@@ -145,7 +145,7 @@ impl RpcClient {
 		anchor_code_hash: &str,
 		event_id: &str,
 	) -> Result<Vec<Value>> {
-		let event_hash = hex::encode(Sha256::digest(event_id.as_bytes()));
+		let event_hash = hex::encode(&Sha256::digest(event_id.as_bytes())[..20]);
 		self.get_all_cells(type_prefix_search(anchor_code_hash, &event_hash))
 			.await
 	}
