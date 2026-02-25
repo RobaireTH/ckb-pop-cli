@@ -40,16 +40,16 @@ pub static CONTRACTS: Contracts = Contracts {
 		dob_badge: ContractInfo {
 			code_hash: "0xb36ed7616c4c87c0779a6c1238e78a84ea68a2638173f25ed140650e0454fbb9",
 			deploy_tx_hash:
-				"0x40ca450088affcbc5f2d8a06545566717106e99caad306776704aab9f3127934",
+				"0x9ae36ae06c449d704bc20af5c455c32a220f73249b5b95a15e8a1e352848fda9",
 			deploy_out_index: 0,
-			data_hash: "0x6e550910a640a41f21614d97d1d7b8c1830cbf11cce5c868c76a6fd0f25ba7a9",
+			data_hash: "0x3da692e19366c26dace65eaa1d6517ca9e4f555cb78a608bfb41d0ea4c5c468b",
 		},
 		event_anchor: ContractInfo {
 			code_hash: "0xd565d738ad5ac99addddc59fd3af5e0d54469dc9834cf766260c7e0d23c70b37",
 			deploy_tx_hash:
-				"0x40ca450088affcbc5f2d8a06545566717106e99caad306776704aab9f3127934",
+				"0x9ae36ae06c449d704bc20af5c455c32a220f73249b5b95a15e8a1e352848fda9",
 			deploy_out_index: 1,
-			data_hash: "0x24dfb1d2a7aca1e967c405e60017204459f3f8fe80e2c21683c4288ad4f5befb",
+			data_hash: "0xde6f3d1814ec3bf5aceaf8fe754f9c82affc4de9f277aa6519b5ad52e892807b",
 		},
 	},
 };
