@@ -22,12 +22,28 @@ pub fn compute_event_id(creator_address: &str, timestamp_secs: i64, nonce: &str)
 
 // -- Type-script argument helpers --
 
-/// Build the 40-byte args used by event-anchor type scripts and badge
-/// arg lookup: `SHA256(primary)[..20] || SHA256(secondary)[..20]`.
+/// Build the 40-byte args used by event-anchor type scripts:
+/// `SHA256(scope_id)[..20] || SHA256(creator_address)[..20]`.
 pub fn build_type_script_args(primary: &str, secondary: &str) -> Vec<u8> {
 	let mut out = Vec::with_capacity(40);
 	out.extend_from_slice(&sha256_truncated(primary.as_bytes()));
 	out.extend_from_slice(&sha256_truncated(secondary.as_bytes()));
+	out
+}
+
+/// Build the 60-byte args used by dob-badge type scripts:
+/// `type_id (20) || SHA256(scope_id)[..20] || SHA256(recipient_address)[..20]`.
+///
+/// Note: a placeholder (all zeros) is used for the type_id until it can be
+/// computed after inputs are selected for the transaction.
+pub fn build_badge_args(event_id: &str, recipient: &str, type_id: Option<&[u8]>) -> Vec<u8> {
+	let mut out = Vec::with_capacity(60);
+	match type_id {
+		Some(tid) => out.extend_from_slice(&tid[..20]),
+		None => out.extend_from_slice(&[0u8; 20]),
+	}
+	out.extend_from_slice(&sha256_truncated(event_id.as_bytes()));
+	out.extend_from_slice(&sha256_truncated(recipient.as_bytes()));
 	out
 }
 
@@ -193,6 +209,13 @@ mod tests {
 	fn type_script_args_are_40_bytes() {
 		let args = build_type_script_args("event123", "address456");
 		assert_eq!(args.len(), 40);
+	}
+
+	#[test]
+	fn badge_args_are_60_bytes() {
+		let args = build_badge_args("event123", "address456", None);
+		assert_eq!(args.len(), 60);
+		assert_eq!(&args[..20], &[0u8; 20]);
 	}
 
 	#[test]

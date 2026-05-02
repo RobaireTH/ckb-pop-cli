@@ -403,6 +403,16 @@ async function main() {{
       await tx.completeInputsByCapacity(signer);
       await tx.completeFeeBy(signer, 2000);
 
+      // Handle truncated Type ID for DOB badges if needed.
+      // Schema: type_id (20) || scope_id_hash (20) || recipient_hash (20)
+      for (let i = 0; i < tx.outputs.length; i++) {{
+        const out = tx.outputs[i];
+        if (out.type && out.type.args.length === 122 && out.type.args.startsWith("0x0000000000000000000000000000000000000000")) {{
+          const typeId = ccc.hashTypeId(tx.inputs[0], i).slice(2, 42);
+          out.type.args = "0x" + typeId + out.type.args.slice(42);
+        }}
+      }}
+
       // Sign without broadcasting — the CLI will broadcast.
       const signed = await signer.signTransaction(tx);
 

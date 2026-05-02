@@ -265,6 +265,28 @@ async fn open_window(
 	println!("Signing window proof...");
 	let creator_sig = signer.sign_message(&msg).await?;
 
+	// Register the window with the backend so attendees can verify HMACs.
+	println!("Registering window with backend...");
+	let body = serde_json::json!({
+		"window_start": window_start,
+		"window_end": window_end,
+		"creator_signature": creator_sig,
+	});
+	let http = reqwest::Client::new();
+	let resp = http
+		.post(format!("{BACKEND_URL}/events/{event_id}/window"))
+		.json(&body)
+		.send()
+		.await?;
+
+	if !resp.status().is_success() {
+		let err: serde_json::Value = resp.json().await.unwrap_or_default();
+		anyhow::bail!(
+			"backend rejected window registration: {}",
+			err.get("error").and_then(|v| v.as_str()).unwrap_or("unknown error")
+		);
+	}
+
 	let window_secret = crypto::derive_window_secret(event_id, window_start, &creator_sig);
 
 	println!("Attendance window open!");

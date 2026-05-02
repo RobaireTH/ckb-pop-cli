@@ -51,7 +51,7 @@ pub fn build_badge_mint(
 	issuer_address: &str,
 	proof_hash: Option<&str>,
 ) -> Result<ckb_types::core::TransactionView> {
-	let args = crypto::build_type_script_args(event_id, recipient_address);
+	let args = crypto::build_badge_args(event_id, recipient_address, None);
 	let type_script = type_script_from(contract, args)?;
 	let cell_data = crypto::build_badge_cell_data(event_id, issuer_address, proof_hash);
 	let cell_dep = cell_dep_for(contract)?;
